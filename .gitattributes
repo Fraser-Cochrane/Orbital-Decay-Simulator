@@ -1,0 +1,4 @@
+# Normalize text files across operating systems while preserving binary assets.
+* text=auto
+*.png binary
+*.npz binary

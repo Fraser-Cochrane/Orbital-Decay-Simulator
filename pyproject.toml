@@ -1,0 +1,56 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "velox-c1-orbital-decay"
+version = "2.0.0"
+description = "Monte Carlo VELOX-C1 orbital decay simulation with web and desktop interfaces"
+readme = "README.md"
+requires-python = ">=3.10"
+keywords = [
+    "aerodynamics",
+    "atmosphere",
+    "monte-carlo",
+    "orbital-decay",
+    "satellite",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: Scientific/Engineering :: Atmospheric Science",
+    "Topic :: Scientific/Engineering :: Physics",
+]
+dependencies = [
+    "fastapi>=0.115",
+    "matplotlib>=3.8",
+    "numpy>=1.26",
+    "Pillow>=10.0",
+    "pymsis>=0.12",
+    "uvicorn>=0.32",
+]
+
+[project.optional-dependencies]
+dev = [
+    "build>=1.2",
+]
+
+[project.scripts]
+velox-decay = "velox_decay.cli:main"
+velox-decay-gui = "velox_decay.gui:main"
+velox-decay-web = "velox_decay.web:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.data-files]
+"share/velox_decay_web" = [
+    "docs/app.js",
+    "docs/index.html",
+    "docs/styles.css",
+]
+"share/velox_decay_web/assets" = [
+    "docs/assets/decay-preview.png",
+]

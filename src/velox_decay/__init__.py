@@ -1,4 +1,4 @@
-"""VELOX-C1 orbital-decay simulation package."""
+"""VELOX-C1 orbital decay simulation package."""
 
 from .config import (
     ALTITUDE_SAMPLE_COUNT,

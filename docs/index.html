@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta
+      name="description"
+      content="Generate VELOX-C1 orbital decay line graphs and heat maps with an interactive NRLMSIS 2.1 Monte Carlo simulator."
+    >
+    <!-- Domain-specific canonical and social-card URLs belong in the deployment configuration. -->
+    <title>VELOX-C1 Orbital Decay Simulator</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+    <!-- The compact header keeps the simulation workspace close to the top of the page. -->
+    <header class="site-header">
+      <a class="brand" href="#top" aria-label="VELOX-C1 simulator home">
+        <span class="brand-mark" aria-hidden="true">VC1</span>
+        <span>Orbital Decay</span>
+      </a>
+      <div class="header-cluster">
+        <span class="server-status" id="server-status" data-state="connecting">
+          <span class="status-dot" aria-hidden="true"></span>
+          <span id="server-status-label">Connecting</span>
+        </span>
+        <nav aria-label="Project navigation">
+          <a href="#simulator">Simulator</a>
+          <a href="#model">Model</a>
+          <a href="#deploy">Deploy</a>
+        </nav>
+      </div>
+    </header>
+
+    <main id="top">
+      <!-- This concise introduction establishes context without delaying access to the controls. -->
+      <section class="intro" aria-labelledby="page-title">
+        <div class="intro-title">
+          <p class="eyebrow">Interactive research instrument · VELOX-C1</p>
+          <h1 id="page-title">Orbital decay simulator</h1>
+        </div>
+        <div class="intro-aside">
+          <p class="intro-copy">
+            Configure a launch epoch and altitude interval, then generate a
+            publication-resolution line graph or solar-cycle heat map.
+          </p>
+          <dl class="intro-specs" aria-label="Simulation specification">
+            <div><dt>Domain</dt><dd>500–700 km</dd></div>
+            <div><dt>Atmosphere</dt><dd>NRLMSIS 2.1</dd></div>
+            <div><dt>Export</dt><dd>600 DPI</dd></div>
+          </dl>
+        </div>
+      </section>
+
+      <!-- The simulator pairs a focused configuration form with a large live result surface. -->
+      <section class="simulator" id="simulator" aria-labelledby="simulator-title">
+        <aside class="control-panel">
+          <div class="panel-heading">
+            <span class="step-badge" aria-hidden="true">01</span>
+            <div>
+              <p class="eyebrow">Configure</p>
+              <h2 id="simulator-title">Simulation</h2>
+            </div>
+          </div>
+
+          <div class="connection-alert" id="connection-alert" role="alert" hidden>
+            <div class="connection-copy">
+              <strong>Simulation service unavailable</strong>
+              <span id="connection-message"></span>
+            </div>
+            <button class="reconnect-button" id="reconnect-button" type="button">Try again</button>
+          </div>
+
+          <form id="simulation-form">
+            <fieldset class="field-group">
+              <legend>Graph type</legend>
+              <div class="segmented-control">
+                <label>
+                  <input type="radio" name="plot_kind" value="line" checked>
+                  <span>Line graph</span>
+                </label>
+                <label>
+                  <input type="radio" name="plot_kind" value="heatmap">
+                  <span>Heat map</span>
+                </label>
+              </div>
+              <p class="field-help" id="plot-help">
+                One-year mean decay rate across the selected altitude interval.
+              </p>
+            </fieldset>
+
+            <fieldset class="field-group">
+              <legend>Launch date</legend>
+              <div class="date-grid">
+                <label>
+                  <span>Year</span>
+                  <select id="launch-year" aria-label="Launch year" required></select>
+                </label>
+                <label>
+                  <span>Month</span>
+                  <select id="launch-month" aria-label="Launch month" required></select>
+                </label>
+                <label>
+                  <span>Day</span>
+                  <select id="launch-day" aria-label="Launch day" required></select>
+                </label>
+              </div>
+              <p class="field-help" id="date-help">Checking local space-weather coverage…</p>
+            </fieldset>
+
+            <fieldset class="field-group">
+              <legend>Initial altitude range</legend>
+              <div class="altitude-grid">
+                <label>
+                  <span>Lower</span>
+                  <span class="unit-input">
+                    <input id="lower-altitude" type="number" min="500" max="700" step="1" value="500" required>
+                    <span>km</span>
+                  </span>
+                </label>
+                <label>
+                  <span>Upper</span>
+                  <span class="unit-input">
+                    <input id="upper-altitude" type="number" min="500" max="700" step="1" value="700" required>
+                    <span>km</span>
+                  </span>
+                </label>
+              </div>
+              <p class="field-help">500–700 km only. Twenty inclusive altitude samples are evaluated.</p>
+            </fieldset>
+
+            <div class="option-list" aria-label="Run options">
+              <label class="switch-row">
+                <span>
+                  <strong>Quick demo</strong>
+                  <small>8 realizations · coarse 30-day propagation step</small>
+                </span>
+                <input id="quick-demo" type="checkbox" role="switch" checked>
+              </label>
+              <label class="switch-row">
+                <span>
+                  <strong>Exact-match cache</strong>
+                  <small>Reuse results only when model inputs match</small>
+                </span>
+                <input id="use-cache" type="checkbox" role="switch" checked>
+              </label>
+            </div>
+
+            <details class="advanced-panel">
+              <summary>
+                <span>Spacecraft parameters</span>
+                <small>VELOX-C1 defaults</small>
+              </summary>
+              <div class="advanced-grid">
+                <label><span>Mass (kg)</span><input name="mass_kg" type="number" min="0.001" step="any" required></label>
+                <label><span>Drag area (m²)</span><input name="aerodynamic_area_m2" type="number" min="0.000001" step="any" required></label>
+                <label><span>Body X (m)</span><input name="body_x_m" type="number" min="0.000001" step="any" required></label>
+                <label><span>Body Y (m)</span><input name="body_y_m" type="number" min="0.000001" step="any" required></label>
+                <label><span>Body Z (m)</span><input name="body_z_m" type="number" min="0.000001" step="any" required></label>
+                <label><span>SRP area (m²)</span><input name="solar_radiation_area_m2" type="number" min="0.000001" step="any" required></label>
+                <label><span>Reflection factor</span><input name="solar_reflection_factor" type="number" min="0" max="1" step="any" required></label>
+                <label><span>Eccentricity</span><input name="eccentricity" type="number" min="0" max="0.999999" step="any" required></label>
+                <label><span>Inclination (°)</span><input name="inclination_deg" type="number" min="0" max="180" step="any" required></label>
+                <label><span>RAAN (°)</span><input name="raan_deg" type="number" step="any" required></label>
+                <label><span>Perigee argument (°)</span><input name="argument_of_perigee_deg" type="number" step="any" required></label>
+              </div>
+              <button class="text-button" id="reset-spacecraft" type="button">Reset VELOX-C1 values</button>
+            </details>
+
+            <button class="generate-button" id="generate-button" type="submit" disabled>
+              <span>Generate graph</span>
+              <span aria-hidden="true">→</span>
+            </button>
+          </form>
+        </aside>
+
+        <section class="result-panel" data-state="idle" aria-labelledby="result-title">
+          <div class="result-heading">
+            <div>
+              <p class="eyebrow">Result</p>
+              <h2 id="result-title">Orbital decay graph</h2>
+            </div>
+            <div class="result-actions">
+              <div class="figure-meta" aria-label="Figure properties">
+                <span id="active-plot-label">Line graph</span>
+                <span>600 DPI</span>
+                <span>±1σ</span>
+              </div>
+              <a class="download-link" id="download-link" href="assets/decay-preview.png" download hidden>Download PNG</a>
+            </div>
+          </div>
+
+          <div class="plot-surface" id="plot-surface" aria-live="polite">
+            <img
+              id="result-image"
+              src="assets/decay-preview.png"
+              alt="Example VELOX-C1 orbital decay line graph"
+              width="1800"
+              height="1799"
+            >
+            <div class="plot-overlay" id="plot-overlay">
+              <div class="orbit-mark" aria-hidden="true"><span></span></div>
+              <div>
+                <span class="preview-label">Example output</span>
+                <p>Choose the simulation inputs and generate a new graph.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="progress-block" id="progress-block">
+            <div class="progress-copy">
+              <strong id="status-message">Ready to configure</strong>
+              <span id="progress-percent">0%</span>
+            </div>
+            <progress id="job-progress" max="100" value="0">0%</progress>
+          </div>
+
+          <p class="result-note" id="result-note">
+            Quick-demo figures are explicitly labelled and are intended for
+            interface evaluation. Disable Quick demo for the 200-realization,
+            three-hour-step scientific profile.
+          </p>
+        </section>
+      </section>
+
+      <!-- The methods overview explains what the server evaluates for each request. -->
+      <section class="model-section" id="model" aria-labelledby="model-title">
+        <div class="section-heading">
+          <p class="eyebrow">Physical methodology</p>
+          <h2 id="model-title">A coupled environment and force model</h2>
+          <p>
+            Atmospheric state, gas-surface interaction, orbital geometry, and
+            uncertainty are evaluated together at each propagation interval.
+          </p>
+        </div>
+        <div class="model-grid">
+          <article><span>01</span><h3>Thermosphere</h3><p>NRLMSIS 2.1 supplies density, temperature, and neutral species from epoch, position, F10.7, centred F10.7, and storm-time Ap.</p></article>
+          <article><span>02</span><h3>Aerodynamics</h3><p>Sentman/DRIA drag responds to species composition, temperature, atomic-oxygen adsorption, accommodation, geometry, and wind.</p></article>
+          <article><span>03</span><h3>Orbit forces</h3><p>Drag is combined with vector solar-radiation pressure, finite-disc eclipses, inverse-square solar scaling, and J2 secular evolution.</p></article>
+          <article><span>04</span><h3>Uncertainty</h3><p>Correlated atmospheric, forecast, neutral-wind, density-model, and gas-surface discrepancies propagate through each trajectory.</p></article>
+        </div>
+      </section>
+
+      <!-- Deployment guidance distinguishes the Python application from static hosting. -->
+      <section class="deploy-section" id="deploy" aria-labelledby="deploy-title">
+        <div>
+          <p class="eyebrow">Python application hosting</p>
+          <h2 id="deploy-title">Run the interactive site</h2>
+          <p>
+            Start the FastAPI service locally or deploy the included container.
+            One numerical worker runs jobs sequentially to protect shared model
+            configuration.
+          </p>
+        </div>
+        <pre aria-label="Web application commands"><code>python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -e .
+python run_web.py</code></pre>
+      </section>
+
+      <!-- The caution remains visible beside all public model outputs. -->
+      <aside class="research-note" aria-labelledby="scope-title">
+        <p class="eyebrow">Research scope</p>
+        <h2 id="scope-title">Interpret results with model limitations in view</h2>
+        <p>
+          This software supports research and educational analysis. It is not
+          an operational flight-dynamics, navigation, re-entry, or conjunction
+          assessment service. Reported uncertainty covers the implemented
+          stochastic processes and does not capture every unknown spacecraft or
+          environmental effect.
+        </p>
+      </aside>
+    </main>
+
+    <footer>
+      <span>VELOX-C1 Orbital Decay Model</span>
+      <span>Python · NRLMSIS 2.1 · Monte Carlo propagation</span>
+    </footer>
+
+    <noscript>
+      <p class="noscript-message">JavaScript is required to submit and monitor simulations from this page.</p>
+    </noscript>
+  </body>
+</html>

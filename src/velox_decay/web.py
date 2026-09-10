@@ -60,6 +60,12 @@ OUTPUT_ROOT = Path(
 WEB_OUTPUT_ROOT = OUTPUT_ROOT / "web"
 MAX_ACTIVE_JOBS = int(os.environ.get("VELOX_WEB_MAX_ACTIVE_JOBS", "4"))
 MAX_JOB_RECORDS = int(os.environ.get("VELOX_WEB_MAX_JOB_RECORDS", "100"))
+ALLOW_FULL_RUNS = os.environ.get("VELOX_WEB_ALLOW_FULL_RUNS", "1").casefold() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}
 
 JobState = Literal["queued", "running", "complete", "failed"]
 
@@ -167,7 +173,7 @@ class WebJob:
         if self.error is not None:
             record["error"] = self.error
         if self.state == "complete":
-            record["image_url"] = f"/api/jobs/{self.identifier}/image"
+            record["image_url"] = f"api/jobs/{self.identifier}/image"
         return record
 
 
@@ -341,6 +347,7 @@ def configuration(response: Response) -> dict[str, object]:
         },
         "altitude_bounds_km": {"minimum": 500.0, "maximum": 700.0},
         "altitude_sample_count": 20,
+        "allow_full_runs": ALLOW_FULL_RUNS,
         "spacecraft": _spacecraft_defaults(),
     }
 
@@ -348,6 +355,14 @@ def configuration(response: Response) -> dict[str, object]:
 @app.post("/api/jobs", status_code=status.HTTP_202_ACCEPTED)
 def create_job(payload: SimulationInput, response: Response) -> dict[str, object]:
     """Validate, enqueue, and return one browser simulation job."""
+    if not payload.quick_demo and not ALLOW_FULL_RUNS:
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "Full scientific runs are disabled on this public service. "
+                "Use quick demo or run the package locally."
+            ),
+        )
     try:
         request = payload.to_request()
     except (RuntimeError, ValueError) as error:
@@ -372,7 +387,7 @@ def create_job(payload: SimulationInput, response: Response) -> dict[str, object
     _executor.submit(_execute_job, identifier)
     response.status_code = status.HTTP_202_ACCEPTED
     response.headers["Cache-Control"] = "no-store"
-    response.headers["Location"] = f"/api/jobs/{identifier}"
+    response.headers["Location"] = f"api/jobs/{identifier}"
     return record
 
 
