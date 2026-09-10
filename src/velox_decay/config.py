@@ -5,7 +5,6 @@ from __future__ import annotations
 import csv
 from dataclasses import dataclass
 from functools import lru_cache
-from pathlib import Path
 from typing import Literal
 
 import numpy as np
@@ -96,9 +95,7 @@ def parse_altitude_bounds(
 @lru_cache(maxsize=1)
 def latest_geomagnetic_epoch() -> np.datetime64:
     """Return the last three-hour epoch covered by PyMSIS's local Ap data."""
-    space_weather_path = Path(model.pymsis.__file__).with_name("SW-All.csv")
-    if not space_weather_path.exists():
-        raise RuntimeError("The PyMSIS space-weather file is unavailable.")
+    space_weather_path = model.space_weather_file_path()
 
     ap_fields = tuple(f"AP{index}" for index in range(1, 9))
     latest_day: np.datetime64 | None = None

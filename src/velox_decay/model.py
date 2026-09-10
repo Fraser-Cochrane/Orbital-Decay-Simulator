@@ -57,7 +57,7 @@ from pathlib import Path
 import numpy as np
 import pymsis
 from pymsis import Variable
-from pymsis.utils import get_f107_ap
+from pymsis.utils import download_f107_ap, get_f107_ap
 
 
 # Keep generated artifacts outside the importable package. The environment
@@ -272,6 +272,37 @@ RESULT_CACHE_DIRECTORY = RUNTIME_DIRECTORY / ".orbital_decay_cache"
 _CACHE_BASE_DIGEST: str | None = None
 
 
+def space_weather_file_path() -> Path:
+    """Return the configured CelesTrak driver file, downloading if needed.
+
+    PyMSIS 0.12 ships ``SW-All.csv`` in the package, while PyMSIS 0.13
+    downloads it on first use. Resolving the file through this helper keeps
+    both layouts working and honours an explicitly configured data file.
+    """
+    configured_path = os.environ.get("PYMSIS_SPACE_WEATHER_FILE")
+    if configured_path:
+        space_weather_path = Path(configured_path).expanduser().resolve()
+        if not space_weather_path.is_file():
+            raise RuntimeError(
+                "The configured PyMSIS space-weather file is unavailable: "
+                f"{space_weather_path}"
+            )
+        return space_weather_path
+
+    space_weather_path = Path(pymsis.__file__).with_name("SW-All.csv")
+    if not space_weather_path.is_file():
+        try:
+            download_f107_ap()
+        except OSError as error:
+            raise RuntimeError(
+                "PyMSIS could not download the CelesTrak space-weather file. "
+                "Check the internet connection and try again."
+            ) from error
+    if not space_weather_path.is_file():
+        raise RuntimeError("The PyMSIS space-weather file is unavailable.")
+    return space_weather_path
+
+
 def parse_launch_epoch(text: str) -> np.datetime64:
     """Parse an ISO-8601 launch epoch and normalize it to second precision."""
     try:
@@ -303,9 +334,7 @@ def cache_base_digest() -> str:
         # increment CACHE_SCHEMA_VERSION after editing model equations in-place.
         digest.update(b"interactive-notebook-source")
     digest.update(str(getattr(pymsis, "__version__", "unknown")).encode())
-    space_weather_path = Path(pymsis.__file__).with_name("SW-All.csv")
-    if not space_weather_path.exists():
-        raise RuntimeError("The PyMSIS space-weather file is unavailable.")
+    space_weather_path = space_weather_file_path()
     with space_weather_path.open("rb") as file:
         while block := file.read(1024 * 1024):
             digest.update(block)
@@ -473,9 +502,7 @@ def observed_space_weather_masks(
     dates: np.ndarray,
 ) -> tuple[np.ndarray, np.ndarray]:
     """Return separate observation masks for F10.7 and the Ap history."""
-    space_weather_path = Path(pymsis.__file__).with_name("SW-All.csv")
-    if not space_weather_path.exists():
-        raise RuntimeError("The PyMSIS space-weather file is unavailable.")
+    space_weather_path = space_weather_file_path()
 
     requested_days = dates.astype("datetime64[D]")
     earliest_day = np.min(requested_days) - np.timedelta64(3, "D")
@@ -519,12 +546,7 @@ def load_observed_driver_history(
     launch_epoch: np.datetime64,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Load an observed pre-launch F10.7 and Ap training window."""
-    space_weather_path = Path(pymsis.__file__).with_name("SW-All.csv")
-    if not space_weather_path.exists():
-        raise RuntimeError(
-            "The PyMSIS space-weather file is unavailable. Load the nominal "
-            "space weather before estimating correlations."
-        )
+    space_weather_path = space_weather_file_path()
 
     launch_day = launch_epoch.astype("datetime64[D]")
     training_days = int(round(CORRELATION_TRAINING_YEARS * 365.2425))
